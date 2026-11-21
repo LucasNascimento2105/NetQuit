@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- TELA DE LOGIN DO APLICATIVO (SEM FORCAR SSH — CONEXAO VIA ARP/RADAR) -->
+  <!-- TELA DE LOGIN DO APLICATIVO -->
   <div id="login-overlay" class="login-overlay">
     <div class="login-card">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -17,20 +17,20 @@
         </div>
         <span id="login-versao-pill" class="pill pill-info">Produção</span>
       </div>
-      <div style="font-size:0.84rem;color:var(--text-secondary);margin-top:-6px">
-        Automação Universal Multi-Vendor · <strong>Acabou, Quitou!</strong>
+      <div data-i18n="login_sub" style="font-size:0.84rem;color:var(--text-secondary);margin-top:-6px">
+        Automação Universal Multi-Vendor · Acabou, Quitou!
       </div>
-      <div style="font-size:0.78rem;color:var(--text-muted)">
-        Entre no NetQuit primeiro. Depois use <strong>Buscar Dispositivos</strong> para descobrir equipamentos na rede e conectar via SSH.
+      <div data-i18n="login_dica" style="font-size:0.78rem;color:var(--text-muted)">
+        Entre no NetQuit primeiro. Depois use Buscar Dispositivos para descobrir equipamentos na rede e conectar via SSH.
       </div>
 
       <div class="field">
-        <label>Usuário do Aplicativo</label>
+        <label data-i18n="login_usuario">Usuário do Aplicativo</label>
         <input id="login-user" value="admin" placeholder="Ex: admin" />
       </div>
 
       <div class="field">
-        <label>Senha</label>
+        <label data-i18n="login_senha">Senha</label>
         <div class="password-wrap">
           <input id="login-pass" type="password" value="admin123" placeholder="Digite sua senha" />
           <button type="button" class="eye-btn" id="btn-ver-senha-login" title="Mostrar / ocultar senha" aria-label="Mostrar senha"></button>
@@ -38,7 +38,7 @@
       </div>
 
       <div id="login-perfis-teste" style="display:none;flex-direction:column;gap:6px">
-        <div style="font-size:0.75rem;color:var(--text-secondary)">Perfis rápidos do Simulador (RBAC):</div>
+        <div data-i18n="login_perfis" style="font-size:0.75rem;color:var(--text-secondary)">Perfis rápidos do Simulador (RBAC):</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button type="button" class="btn btn-neutral" style="padding:4px 9px;font-size:0.75rem" data-quick-user="admin" data-quick-pass="admin123">admin (Nv. 15)</button>
           <button type="button" class="btn btn-neutral" style="padding:4px 9px;font-size:0.75rem" data-quick-user="operador" data-quick-pass="operador123">operador (Nv. 7)</button>
@@ -48,31 +48,31 @@
 
       <div id="login-erro" class="pill pill-danger" style="display:none;justify-content:center;padding:8px"></div>
 
-      <button type="button" class="btn btn-primary" id="btn-entrar" style="padding:10px;font-size:0.92rem">Entrar no NetQuit</button>
+      <button type="button" class="btn btn-primary" id="btn-entrar" data-i18n="login_entrar" style="padding:10px;font-size:0.92rem">Entrar no NetQuit</button>
     </div>
   </div>
 
-  <!-- MODAL CONECTAR SSH A PARTIR DO ARP / RADAR -->
+  <!-- MODAL CONECTAR SSH -->
   <div id="ssh-modal" class="login-overlay hidden" style="background:rgba(10,14,18,0.72)">
     <div class="login-card" style="max-width:420px">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong>Conectar via SSHv2 no Dispositivo</strong>
+        <strong data-i18n="ssh_titulo">Conectar via SSHv2 no Dispositivo</strong>
         <button class="btn btn-neutral" id="btn-fechar-ssh" style="padding:4px 9px;font-size:0.76rem">✕</button>
       </div>
       <div class="field-row">
-        <div class="field"><label>IP do Equipamento</label><input id="ssh-ip" placeholder="192.168.1.1" /></div>
-        <div class="field"><label>Porta SSH</label><input id="ssh-port" type="number" value="22" /></div>
+        <div class="field"><label data-i18n="ssh_ip">IP do Equipamento</label><input id="ssh-ip" placeholder="192.168.1.1" /></div>
+        <div class="field"><label data-i18n="ssh_porta">Porta SSH</label><input id="ssh-port" type="number" value="22" /></div>
       </div>
-      <div class="field"><label>Usuário SSH</label><input id="ssh-user" value="admin" /></div>
+      <div class="field"><label data-i18n="ssh_usuario">Usuário SSH</label><input id="ssh-user" value="admin" /></div>
       <div class="field">
-        <label>Senha SSH</label>
+        <label data-i18n="ssh_senha">Senha SSH</label>
         <div class="password-wrap">
           <input id="ssh-pass" type="password" placeholder="Senha do equipamento" />
           <button type="button" class="eye-btn" id="btn-ver-senha-ssh" title="Mostrar / ocultar senha" aria-label="Mostrar senha"></button>
         </div>
       </div>
       <div id="ssh-erro" class="pill pill-danger" style="display:none;justify-content:center;padding:7px"></div>
-      <button type="button" class="btn btn-primary" id="btn-confirmar-ssh">Conectar e Auto-Detectar Marca</button>
+      <button type="button" class="btn btn-primary" id="btn-confirmar-ssh" data-i18n="ssh_conectar">Conectar e Auto-Detectar Marca</button>
     </div>
   </div>
 
@@ -89,59 +89,59 @@
       <nav class="nav-scroll" id="sidebar-nav">
         <button class="nav-item active" data-page="inicio">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          <span>Visão Geral</span>
+          <span data-i18n="nav_inicio">Visão Geral</span>
         </button>
         <button class="nav-item" data-page="radar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span>Buscar Dispositivos</span>
+          <span data-i18n="nav_radar">Buscar Dispositivos</span>
         </button>
         <button class="nav-item" data-page="portas">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/></svg>
-          <span>Portas</span>
+          <span data-i18n="nav_portas">Portas</span>
         </button>
         <button class="nav-item" data-page="vlans">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          <span>VLANs</span>
+          <span data-i18n="nav_vlans">VLANs</span>
         </button>
         <button class="nav-item" data-page="wifi">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
-          <span>Wi-Fi</span>
+          <span data-i18n="nav_wifi">Wi-Fi</span>
         </button>
         <div id="subnav-wifi" class="nav-sub-group collapsed">
-          <button class="nav-sub-item active" data-wifi-sub="ssids">• Redes Sem Fio (SSIDs)</button>
-          <button class="nav-sub-item" data-wifi-sub="antenas">• Antenas &amp; Canais RF</button>
+          <button class="nav-sub-item active" data-wifi-sub="ssids" data-i18n="nav_wifi_ssids">• Redes Sem Fio (SSIDs)</button>
+          <button class="nav-sub-item" data-wifi-sub="antenas" data-i18n="nav_wifi_antenas">• Antenas &amp; Canais RF</button>
         </div>
         <button class="nav-item" data-page="aps">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="14" width="16" height="6" rx="2"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M5 7a9 9 0 0 1 14 0"/></svg>
-          <span>Access Points</span>
+          <span data-i18n="nav_aps">Access Points</span>
         </button>
         <button class="nav-item" data-page="roteamento">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 12h6l4-5M13 12l4 5"/></svg>
-          <span>Roteamento</span>
+          <span data-i18n="nav_roteamento">Roteamento</span>
         </button>
         <button class="nav-item" data-page="backups">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          <span>Backup &amp; Rollback</span>
+          <span data-i18n="nav_backups">Backup &amp; Rollback</span>
         </button>
         <button class="nav-item" data-page="console">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-          <span>Console Direto (CLI)</span>
+          <span data-i18n="nav_console">Console Direto (CLI)</span>
         </button>
 
         <div class="nav-divider"></div>
 
         <button class="nav-item" data-page="alertas">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span>Central de Alertas</span>
+          <span data-i18n="nav_alertas">Central de Alertas</span>
           <span id="badge-alertas" class="nav-badge" style="display:none">0</span>
         </button>
         <button class="nav-item" data-page="usuarios">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Identidade &amp; Usuários</span>
+          <span data-i18n="nav_usuarios">Identidade &amp; Usuários</span>
         </button>
         <button class="nav-item" data-page="acessibilidade">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>Aparência &amp; Acessibilidade</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span data-i18n="nav_acessibilidade">Aparência &amp; Acessibilidade</span>
         </button>
       </nav>
 
@@ -150,7 +150,7 @@
           <span id="lbl-operador" style="font-weight:600;color:var(--text-primary)">admin (Nv. 15)</span>
           <span id="lbl-hostname" style="font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Desconectado</span>
         </div>
-        <button class="btn btn-neutral" id="btn-logout" style="padding:4px 9px;font-size:0.74rem">Sair</button>
+        <button class="btn btn-neutral" id="btn-logout" data-i18n="btn_sair" style="padding:4px 9px;font-size:0.74rem">Sair</button>
       </div>
     </aside>
 
@@ -169,8 +169,8 @@
             <option value="aruba_cx">ArubaOS-CX / HPE</option>
             <option value="tp_link_jet_stream">TP-Link JetStream</option>
           </select>
-          <button class="btn btn-neutral" id="btn-detectar-vendor" title="Auto-Fingerprinting via Banner/SSH">Auto-Detectar</button>
-          <button class="btn btn-neutral" id="btn-sync">Sincronizar</button>
+          <button class="btn btn-neutral" id="btn-detectar-vendor" data-i18n="btn_auto_detectar" title="Auto-Fingerprinting via Banner/SSH">Auto-Detectar</button>
+          <button class="btn btn-neutral" id="btn-sync" data-i18n="btn_sincronizar">Sincronizar</button>
         </div>
       </header>
 
@@ -181,6 +181,7 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

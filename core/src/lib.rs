@@ -149,12 +149,18 @@ pub struct AlertaItem {
     pub log_resolucao: String,
 }
 
+fn default_idioma() -> String {
+    "pt".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigApp {
     pub tema: String,        // "zorin_dark", "zorin_light", "alto_contraste", "daltonico"
     pub delta_fonte: i32,    // -2, 0, 2, 4
     pub bip_alerta: bool,
     pub modo_teste: bool,
+    #[serde(default = "default_idioma")]
+    pub idioma: String,      // "pt", "en", "zh"
 }
 
 impl Default for ConfigApp {
@@ -164,6 +170,7 @@ impl Default for ConfigApp {
             delta_fonte: 0,
             bip_alerta: true,
             modo_teste: true,
+            idioma: "pt".to_string(),
         }
     }
 }

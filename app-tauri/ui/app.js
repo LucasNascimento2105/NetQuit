@@ -84,8 +84,20 @@ let STATE = {
     { username: "operador", privilegio: 7, origem: "roteador" }
   ],
   backups: [],
-  config: { tema: "zorin_dark", delta_fonte: 0, bip_alerta: true, modo_teste: true }
+  config: { tema: "zorin_dark", delta_fonte: 0, bip_alerta: true, modo_teste: true, idioma: "pt" }
 };
+window.STATE = STATE;
+
+function aplicarIdiomaDOM() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    if (k) el.textContent = t(k);
+  });
+  const pill = document.getElementById("login-versao-pill");
+  if (pill) pill.textContent = STATE.modo_teste ? t("login_versao_teste") : t("login_versao_prod");
+  const bModo = document.getElementById("badge-modo");
+  if (bModo) bModo.textContent = STATE.modo_teste ? t("badge_teste") : t("badge_producao");
+}
 
 const ICON_EYE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const ICON_EYE_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
@@ -224,7 +236,7 @@ function atualizarBadges() {
   } else {
     b.style.display = "none";
   }
-  document.getElementById("badge-modo").textContent = STATE.modo_teste ? "Teste" : "Produção";
+  document.getElementById("badge-modo").textContent = STATE.modo_teste ? t("badge_teste") : t("badge_producao");
   document.getElementById("lbl-operador").textContent = `${STATE.operador} (Nv. ${STATE.privilegio})`;
   document.getElementById("lbl-hostname").textContent = STATE.conectado_ssh
     ? `${STATE.hostname} (${STATE.ip_conectado || "Sim"})`
@@ -364,30 +376,30 @@ function renderInicio(root) {
   root.innerHTML = `
     <div class="grid-kpi">
       <div class="kpi-card">
-        <div class="kpi-label">Sessão do Equipamento</div>
-        <div class="kpi-value" style="font-size:1.15rem;color:${STATE.conectado_ssh ? "var(--success)" : "var(--warning)"}">${STATE.conectado_ssh ? "Conectado" : "Aguardando ARP/SSH"}</div>
-        <div class="kpi-meta">${STATE.conectado_ssh ? `${STATE.hostname} · ${fabNome}` : "Vá em Radar & ARP para conectar"}</div>
+        <div class="kpi-label">${t("kpi_sessao")}</div>
+        <div class="kpi-value" style="font-size:1.15rem;color:${STATE.conectado_ssh ? "var(--success)" : "var(--warning)"}">${STATE.conectado_ssh ? "Online" : "SSH"}</div>
+        <div class="kpi-meta">${STATE.conectado_ssh ? `${STATE.hostname} · ${fabNome}` : t("nav_radar")}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Dispositivos no ARP</div>
+        <div class="kpi-label">${t("kpi_dispositivos")}</div>
         <div class="kpi-value" style="color:var(--accent)">${STATE.dispositivos.length}</div>
-        <div class="kpi-meta">${portasUp}/${STATE.portas.length} portas ativas · ${STATE.vlans.length} VLANs</div>
+        <div class="kpi-meta">${portasUp}/${STATE.portas.length} UP · ${STATE.vlans.length} VLANs</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Access Points Online</div>
+        <div class="kpi-label">${t("kpi_aps")}</div>
         <div class="kpi-value">${apsOn}/${STATE.aps.length}</div>
-        <div class="kpi-meta">${STATE.aps.length - apsOn} offline (somente leitura)</div>
+        <div class="kpi-meta">${STATE.aps.length - apsOn} offline</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Alertas em Aberto</div>
+        <div class="kpi-label">${t("kpi_alertas")}</div>
         <div class="kpi-value" style="color:${alertasAbertos ? "var(--warning)" : "var(--success)"}">${alertasAbertos}</div>
-        <div class="kpi-meta">${STATE.modo_teste ? "Versão Teste (Simulador)" : "Versão Produção (Real)"}</div>
+        <div class="kpi-meta">${STATE.modo_teste ? t("login_versao_teste") : t("login_versao_prod")}</div>
       </div>
     </div>
 
     <div class="section-header">
-      <h2>Ações Rápidas</h2>
-      <p>Fluxo recomendado: descubra os equipamentos na rede via ARP, nomeie-os e conecte via SSH.</p>
+      <h2>${t("acoes_rapidas")}</h2>
+      <p>${t("sub_inicio")}</p>
     </div>
     <div class="adw-group">
       <div class="adw-row clickable" data-go="radar">
@@ -434,8 +446,8 @@ function renderRadar(root) {
         <p>${STATE.modo_teste ? "Dispositivos simulados da rede local" : "Dispositivos encontrados na sua rede local"} — nomeie ou clique em <strong>Conectar SSH</strong>.</p>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-neutral" id="btn-ssh-manual">Conectar IP Manual</button>
-        <button class="btn btn-primary" id="btn-varrer-arp">Buscar na Rede</button>
+        <button class="btn btn-neutral" id="btn-ssh-manual">${t("conectar_ip_manual")}</button>
+        <button class="btn btn-primary" id="btn-varrer-arp">${t("buscar_rede")}</button>
       </div>
     </div>
     <div class="adw-group table-wrap">
@@ -1135,11 +1147,11 @@ function renderAlertas(root) {
   const filtrosHtml = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
       <div class="login-mode-tabs" style="grid-template-columns:repeat(3,auto);width:fit-content">
-        <button type="button" class="login-tab ${STATE.alertaFiltro === "pendentes" ? "active" : ""}" data-afiltro="pendentes">Pendentes (${pendentes.length})</button>
-        <button type="button" class="login-tab ${STATE.alertaFiltro === "resolvidos" ? "active" : ""}" data-afiltro="resolvidos">Resolvidos (${resolvidos.length})</button>
-        <button type="button" class="login-tab ${STATE.alertaFiltro === "todos" ? "active" : ""}" data-afiltro="todos">Todos (${todos.length})</button>
+        <button type="button" class="login-tab ${STATE.alertaFiltro === "pendentes" ? "active" : ""}" data-afiltro="pendentes">${t("filtro_pendentes")} (${pendentes.length})</button>
+        <button type="button" class="login-tab ${STATE.alertaFiltro === "resolvidos" ? "active" : ""}" data-afiltro="resolvidos">${t("filtro_resolvidos")} (${resolvidos.length})</button>
+        <button type="button" class="login-tab ${STATE.alertaFiltro === "todos" ? "active" : ""}" data-afiltro="todos">${t("filtro_todos")} (${todos.length})</button>
       </div>
-      <span style="font-size:0.8rem;color:var(--text-secondary)">Clique em um alerta para responder ao incidente ou ver o log de auditoria</span>
+      <span style="font-size:0.8rem;color:var(--text-secondary)">${t("dica_alertas")}</span>
     </div>
   `;
 
@@ -1194,11 +1206,11 @@ function renderAlertas(root) {
       `;
     } else {
       const acoes = [
-        ["bloquear_mac", "Bloquear Dispositivo na Rede (MAC ACL)", "Impede o MAC de se reconectar em qualquer porta/rede"],
-        ["trancar_porta", "Desconectar & Trancar Porta do Switch", "Executa shutdown + port-security na interface detectada"],
-        ["quarentena_vlan", "Isolar em VLAN de Quarentena (VLAN 999)", "Move a porta para uma VLAN isolada sem acesso corporativo"],
-        ["autorizar_dispositivo", "Autorizar na Lista de Confiáveis", "Adiciona o dispositivo à Whitelist e permite dar um apelido"],
-        ["ciencia", "Registrar Ciência / Falso Positivo", "Encerra o alerta sem alterar configurações do equipamento"]
+        ["bloquear_mac", t("acao_bloquear_mac"), t("acao_bloquear_mac_sub")],
+        ["trancar_porta", t("acao_trancar_porta"), t("acao_trancar_porta_sub")],
+        ["quarentena_vlan", t("acao_quarentena"), t("acao_quarentena_sub")],
+        ["autorizar_dispositivo", t("acao_autorizar"), t("acao_autorizar_sub")],
+        ["ciencia", t("acao_ciencia"), t("acao_ciencia_sub")]
       ];
       painelDirHtml = `
         <div class="adw-group form-card">
@@ -1236,7 +1248,7 @@ function renderAlertas(root) {
             <input id="inc-nota" placeholder="Ex: Dispositivo não reconhecido bloqueado preventivamente" />
           </div>
 
-          <button class="btn btn-primary" id="btn-executar-incidente">Executar Ação &amp; Resolver Incidente</button>
+          <button class="btn btn-primary" id="btn-executar-incidente">${t("btn_exec_incidente")}</button>
         </div>
       `;
     }
@@ -1397,34 +1409,53 @@ function renderUsuarios(root) {
 }
 
 function renderAcessibilidade(root) {
+  const idiomas = [
+    ["pt", "🇧🇷 PT · Português"],
+    ["en", "🇺🇸 EN · English"],
+    ["zh", "🇨🇳 中文 · 简体中文"]
+  ];
+  const idiomaAtivo = STATE.config.idioma || "pt";
+
   const temas = [
-    ["zorin_dark", "Escuro (Padrão)", "Superfície ardósia escura moderna com foco azul-gelo de alto conforto visual"],
-    ["zorin_light", "Claro", "Tema claro limpo e equilibrado para ambientes bem iluminados"],
-    ["alto_contraste", "Alto Contraste (Baixa Visão)", "Fundo preto puro com bordas de alto contraste e foco amarelo"],
-    ["daltonico", "Daltônico (Okabe-Ito)", "Paleta cientificamente segura para deuteranopia e protanopia"]
+    ["zorin_dark", t("tema_escuro"), t("tema_escuro_sub")],
+    ["zorin_light", t("tema_claro"), t("tema_claro_sub")],
+    ["alto_contraste", t("tema_hc"), t("tema_hc_sub")],
+    ["daltonico", t("tema_dalt"), t("tema_dalt_sub")]
   ];
   const pontos = [-2, 0, 2, 4];
-  const rotulos = { "-2": "Menor (-2 pt)", "0": "Padrão (0 pt)", "2": "Maior (+2 pt)", "4": "Grande (+4 pt)" };
+  const rotulos = { "-2": "-2 pt", "0": "0 pt", "2": "+2 pt", "4": "+4 pt" };
   const idxAtual = Math.max(0, pontos.indexOf(STATE.previewDelta));
   const pct = (idxAtual / (pontos.length - 1)) * 100;
 
   root.innerHTML = `
     <div class="section-header">
-      <h2>Tema Visual (Troca Instantânea em 0ms)</h2>
-      <p>Sem piscadas e sem engasgos — todas as cores atualizam instantaneamente via GPU/CSS.</p>
+      <h2>${t("idioma_titulo")}</h2>
+      <p>${t("idioma_sub")}</p>
+    </div>
+    <div class="adw-group" style="padding:12px">
+      <div class="login-mode-tabs" style="grid-template-columns:repeat(3,1fr);gap:8px;padding:6px">
+        ${idiomas.map(([cod, label]) => `
+          <button type="button" class="login-tab ${idiomaAtivo === cod ? "active" : ""}" data-idioma="${cod}" style="padding:10px 12px;font-size:0.9rem">${label}</button>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h2>${t("tema_titulo")}</h2>
+      <p>${t("tema_sub")}</p>
     </div>
     <div class="adw-group">
       ${temas.map(([cod, nome, desc]) => `
         <div class="adw-row clickable" data-tema="${cod}">
           <div><div class="adw-row-title">${nome}</div><div class="adw-row-sub">${desc}</div></div>
-          <span class="pill ${STATE.config.tema === cod ? "pill-success" : "pill-info"}">${STATE.config.tema === cod ? "Ativo" : "Selecionar"}</span>
+          <span class="pill ${STATE.config.tema === cod ? "pill-success" : "pill-info"}">${STATE.config.tema === cod ? t("ativo") : t("selecionar")}</span>
         </div>
       `).join("")}
     </div>
 
     <div class="section-header">
-      <h2>Escala de Fontes (Slider Segmentado)</h2>
-      <p>Clique ou arraste segmento a segmento e visualize o tamanho antes de aplicar.</p>
+      <h2>${t("fonte_titulo")}</h2>
+      <p>${t("fonte_sub")}</p>
     </div>
     <div class="adw-group form-card">
       <div class="seg-slider">
@@ -1439,15 +1470,23 @@ function renderAcessibilidade(root) {
 
       <div class="adw-group" style="padding:14px;background:var(--bg-input)">
         <div style="font-size:${16 + STATE.previewDelta}px;font-weight:700">NetQuit · ${STATE.hostname}</div>
-        <div style="font-size:${13 + STATE.previewDelta}px;color:var(--text-secondary);margin-top:4px">Interfaces Ativas (UP) · VLAN 10 (Administração) · Tradutor Multi-Vendor</div>
+        <div style="font-size:${13 + STATE.previewDelta}px;color:var(--text-secondary);margin-top:4px">VLAN 10 · Multi-Vendor · ${idiomaAtivo.toUpperCase()}</div>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:0.82rem;color:var(--text-secondary)">Ativo no sistema: <strong>${rotulos[STATE.config.delta_fonte]}</strong></span>
-        <button class="btn btn-primary" id="btn-aplicar-fonte">Aplicar Tamanho de Fonte</button>
+        <span style="font-size:0.82rem;color:var(--text-secondary)">${t("ativo_sistema")} <strong>${rotulos[STATE.config.delta_fonte]}</strong></span>
+        <button class="btn btn-primary" id="btn-aplicar-fonte">${t("btn_aplicar_fonte")}</button>
       </div>
     </div>
   `;
+
+  root.querySelectorAll("[data-idioma]").forEach(btn => btn.addEventListener("click", async () => {
+    STATE.config.idioma = btn.dataset.idioma;
+    aplicarIdiomaDOM();
+    await tauriInvoke("salvar_config_app", { config: STATE.config });
+    toast(btn.textContent.trim());
+    renderCurrentPage();
+  }));
 
   root.querySelectorAll("[data-tema]").forEach(r => r.addEventListener("click", async () => {
     STATE.config.tema = r.dataset.tema;
@@ -1485,9 +1524,11 @@ function renderAcessibilidade(root) {
 
 function renderCurrentPage() {
   const root = document.getElementById("page-root");
-  const [tit, sub] = TITULOS[STATE.paginaAtual] || ["NetQuit", ""];
+  const tit = t(`tit_${STATE.paginaAtual}`) || "NetQuit";
+  const sub = t(`sub_${STATE.paginaAtual}`) || "";
   document.getElementById("header-title").textContent = tit;
   document.getElementById("header-sub").textContent = `${STATE.hostname} · ${sub}`;
+  aplicarIdiomaDOM();
 
   document.querySelectorAll("#sidebar-nav .nav-item").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.page === STATE.paginaAtual);
