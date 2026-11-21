@@ -1,0 +1,12 @@
+[package]
+name = "netquit-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "netquit-cli"
+path = "src/main.rs"
+
+[dependencies]
+netcontrol-core = { path = "../core", features = ["real-ssh"] }
+clap = { version = "4.5", features = ["derive"] }

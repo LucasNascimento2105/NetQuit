@@ -1,0 +1,23 @@
+[package]
+name = "netquit-gui"
+version.workspace = true
+edition.workspace = true
+default-run = "netquit-gui"
+
+[[bin]]
+name = "netquit-gui"
+path = "src/main.rs"
+
+[[bin]]
+name = "netquit-gui-teste"
+path = "src/bin_teste.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+netcontrol-core = { path = "../../core", features = ["real-ssh"] }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
