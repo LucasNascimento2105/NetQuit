@@ -1,0 +1,41 @@
+name: Build NetQuit (Windows .exe + Linux)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-tauri-and-cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            os_label: linux
+          - platform: windows-latest
+            os_label: windows
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias Linux (GTK / WebKitGTK)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Instalar Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Compilar Binarios NetQuit (Producao + Teste + CLI)
+        run: cargo build --release --workspace
+
+      - name: Publicar executaveis como Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetQuit-${{ matrix.os_label }}
+          path: |
+            target/release/netquit-cli*
+            target/release/netquit-gui*
