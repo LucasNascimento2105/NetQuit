@@ -127,6 +127,44 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+[data-theme="zorin_light"] * {
+  scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
+}
+
+/* Barras de rolagem minimalistas sem fundo (estilo GNOME / Libadwaita) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  transition: background-color 140ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+[data-theme="zorin_light"] ::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.22);
+}
+
+[data-theme="zorin_light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.42);
 }
 
 html, body {

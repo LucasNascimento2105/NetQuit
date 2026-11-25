@@ -452,6 +452,12 @@ fn salvar_canal_rf(state: State<'_, AppState>, info: CanalRfInfo) -> Result<Stri
 fn definir_fabricante(state: State<'_, AppState>, slug: String) -> Fabricante {
     let fab = Fabricante::from_slug(&slug);
     *state.fabricante.lock().unwrap() = fab.clone();
+    let mut cfg = state.config.lock().unwrap();
+    cfg.fabricante_padrao = slug;
+    let p_cfg = state.pasta_dados.join("config_app.json");
+    if let Ok(json) = serde_json::to_string_pretty(&*cfg) {
+        let _ = fs::write(p_cfg, json);
+    }
     fab
 }
 
@@ -657,6 +663,10 @@ fn criar_usuario_app(state: State<'_, AppState>, conta: UsuarioConta) -> Result<
         return Err("Ja existe um usuario do app com este nome.".into());
     }
     u_app.push(conta);
+    let p_users = state.pasta_dados.join("usuarios_app.json");
+    if let Ok(json) = serde_json::to_string_pretty(&*u_app) {
+        let _ = fs::write(p_users, json);
+    }
     Ok("Usuario do aplicativo criado com sucesso.".into())
 }
 
@@ -809,14 +819,21 @@ fn importar_usuario_roteador(state: State<'_, AppState>, username: String) -> Re
 }
 
 #[tauri::command]
-fn salvar_config_app(state: State<'_, AppState>, config: ConfigApp) -> ConfigApp {
+fn salvar_config_app(state: State<'_, AppState>, mut config: ConfigApp) -> Result<ConfigApp, String> {
+    config.modo_teste = state.modo_teste_fixo;
+    let _ = fs::create_dir_all(&state.pasta_dados);
+    let caminho = state.pasta_dados.join("config_app.json");
+    let json = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Erro ao serializar config: {}", e))?;
+    fs::write(&caminho, json).map_err(|e| format!("Erro ao gravar config_app.json: {}", e))?;
     let mut c = state.config.lock().unwrap();
     *c = config.clone();
-    config
+    Ok(config)
 }
 
 pub fn run(modo_teste: bool) {
     let pasta_dados = PathBuf::from(if modo_teste { "dados_rede_teste" } else { "dados_rede" });
+    let _ = fs::create_dir_all(&pasta_dados);
     let alertas = GerenciadorAlertas::new(&pasta_dados);
     if modo_teste && alertas.listar().is_empty() {
         alertas.registrar(
@@ -837,15 +854,32 @@ pub fn run(modo_teste: bool) {
         );
     }
 
-    let mut cfg = ConfigApp::default();
+    let caminho_cfg = pasta_dados.join("config_app.json");
+    let mut cfg: ConfigApp = fs::read_to_string(&caminho_cfg)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default();
     cfg.modo_teste = modo_teste;
+    let fab_inicial = Fabricante::from_slug(&cfg.fabricante_padrao);
+
+    let caminho_users = pasta_dados.join("usuarios_app.json");
+    let usuarios_iniciais: Vec<UsuarioConta> = fs::read_to_string(&caminho_users)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| {
+            vec![
+                UsuarioConta { username: "admin".into(), privilegio: 15, origem: "app".into(), senha: "admin123".into() },
+                UsuarioConta { username: "operador".into(), privilegio: 7, origem: "app".into(), senha: "operador123".into() },
+                UsuarioConta { username: "visitante_recepcao".into(), privilegio: 1, origem: "app".into(), senha: "visita123".into() },
+            ]
+        });
 
     let state = AppState {
         modo_teste_fixo: modo_teste,
         sim: Mutex::new(SimuladorCiscoIOS::new("192.168.1.1")),
         sessao_real: Mutex::new(None),
         ip_conectado: Mutex::new(if modo_teste { "192.168.1.1".into() } else { String::new() }),
-        fabricante: Mutex::new(Fabricante::CiscoIos),
+        fabricante: Mutex::new(fab_inicial),
         dominio: Mutex::new("netquit.local".into()),
         banner: Mutex::new("Acesso restrito — NetQuit (Acabou, Quitou!)".into()),
         canais_rf: Mutex::new(vec![
@@ -853,11 +887,7 @@ pub fn run(modo_teste: bool) {
             CanalRfInfo { radio: "Dot11Radio1".into(), banda: "5.0 GHz (802.11a/n/ac)".into(), canal: "36".into(), largura: "40 MHz".into(), potencia: "100%".into(), arquitetura: "IOS Autonomous AP".into() },
         ]),
         alertas,
-        usuarios_app: Mutex::new(vec![
-            UsuarioConta { username: "admin".into(), privilegio: 15, origem: "app".into(), senha: "admin123".into() },
-            UsuarioConta { username: "operador".into(), privilegio: 7, origem: "app".into(), senha: "operador123".into() },
-            UsuarioConta { username: "visitante_recepcao".into(), privilegio: 1, origem: "app".into(), senha: "visita123".into() },
-        ]),
+        usuarios_app: Mutex::new(usuarios_iniciais),
         config: Mutex::new(cfg),
         operador_ativo: Mutex::new(("admin".into(), 15)),
         pasta_dados,

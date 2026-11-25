@@ -84,11 +84,18 @@ let STATE = {
     { username: "operador", privilegio: 7, origem: "roteador" }
   ],
   backups: [],
-  config: { tema: "zorin_dark", delta_fonte: 0, bip_alerta: true, modo_teste: true, idioma: "pt" }
+  config: { tema: "zorin_dark", delta_fonte: 0, bip_alerta: true, modo_teste: true, idioma: "pt", fabricante_padrao: "cisco_ios" }
 };
 window.STATE = STATE;
 
+async function persistirConfigApp() {
+  STATE.config.fabricante_padrao = STATE.fabricante || STATE.config.fabricante_padrao || "cisco_ios";
+  try { localStorage.setItem("netquit_config", JSON.stringify(STATE.config)); } catch (_) {}
+  try { await tauriInvoke("salvar_config_app", { config: STATE.config }); } catch (_) {}
+}
+
 function aplicarIdiomaDOM() {
+  document.documentElement.lang = STATE.config.idioma === "en" ? "en" : (STATE.config.idioma === "zh" ? "zh-CN" : "pt-BR");
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const k = el.getAttribute("data-i18n");
     if (k) el.textContent = t(k);
@@ -240,7 +247,7 @@ function atualizarBadges() {
   document.getElementById("lbl-operador").textContent = `${STATE.operador} (Nv. ${STATE.privilegio})`;
   document.getElementById("lbl-hostname").textContent = STATE.conectado_ssh
     ? `${STATE.hostname} (${STATE.ip_conectado || "Sim"})`
-    : "Sem SSH (Use Radar/ARP)";
+    : t("sem_ssh");
   const selFab = document.getElementById("sel-fabricante");
   if (selFab) selFab.value = STATE.fabricante;
 }
@@ -253,18 +260,18 @@ function abrirModalSsh(ipInicial = "") {
 
 function resumoVlanPorta(p) {
   if (p.sw_mode === "trunk") {
-    return (!p.vlans.length || p.vlans.includes("all")) ? "Trunk (802.1Q Todas)" : `Trunk (VLANs: ${p.vlans.join(",")})`;
+    return (!p.vlans.length || p.vlans.includes("all")) ? t("vl_modo_all") : `Trunk (VLANs: ${p.vlans.join(",")})`;
   }
   if (p.sw_mode === "access" && p.vlans.length) return `VLAN ${p.vlans[0]} (Access)`;
   if (p.sw_mode === "dot1q" && p.vlans.length) return `Dot1Q VLAN ${p.vlans.join(",")}`;
-  return (p.ip && p.ip !== "unassigned") ? "Roteada (L3)" : "Padrão / Sem VLAN";
+  return (p.ip && p.ip !== "unassigned") ? t("vl_roteada") : t("vl_padrao");
 }
 
 function criarHtmlVlanListbox(idBase, selecionadas, { incluirEspeciais = false, disabled = false } = {}) {
   const opcoes = [];
   if (incluirEspeciais) {
-    opcoes.push({ val: "__sem_vlan__", label: "Sem VLAN (Porta Roteada L3)" });
-    opcoes.push({ val: "__trunk_all__", label: "Todas as VLANs (Trunk 802.1Q Full)" });
+    opcoes.push({ val: "__sem_vlan__", label: t("vl_sem_vlan") });
+    opcoes.push({ val: "__trunk_all__", label: t("vl_trunk_all") });
   }
   STATE.vlans.forEach(v => opcoes.push({ val: v.id, label: `VLAN ${v.id} — ${v.nome}` }));
 
@@ -277,14 +284,14 @@ function criarHtmlVlanListbox(idBase, selecionadas, { incluirEspeciais = false, 
   }).join("");
 
   const resumo = selecionadas.length === 0
-    ? "Nenhuma VLAN selecionada"
+    ? t("vl_nenhuma")
     : selecionadas.includes("__sem_vlan__")
-      ? "Modo: Sem VLAN (Roteada L3)"
+      ? t("vl_modo_sem")
       : selecionadas.includes("__trunk_all__")
-        ? "Modo: Trunk 802.1Q (Todas)"
+        ? t("vl_modo_all")
         : selecionadas.length === 1
-          ? `Selecionada: VLAN ${selecionadas[0]}`
-          : `Múltiplas VLANs (${selecionadas.length}): ${selecionadas.join(", ")}`;
+          ? `${t("vl_sel_uma")} ${selecionadas[0]}`
+          : `${t("vl_sel_mult")} (${selecionadas.length}): ${selecionadas.join(", ")}`;
 
   return `
     <div id="${idBase}" class="vlan-listbox ${disabled ? "disabled" : ""}" data-especiais="${incluirEspeciais}">
@@ -293,8 +300,8 @@ function criarHtmlVlanListbox(idBase, selecionadas, { incluirEspeciais = false, 
     <div class="vlan-listbox-footer">
       <span id="${idBase}-resumo">${resumo}</span>
       <div style="display:flex;gap:4px">
-        <button type="button" class="btn btn-neutral" style="padding:2px 8px;font-size:0.72rem" id="${idBase}-todas" ${disabled ? "disabled" : ""}>Todas VLANs</button>
-        <button type="button" class="btn btn-neutral" style="padding:2px 8px;font-size:0.72rem" id="${idBase}-limpar" ${disabled ? "disabled" : ""}>Limpar</button>
+        <button type="button" class="btn btn-neutral" style="padding:2px 8px;font-size:0.72rem" id="${idBase}-todas" ${disabled ? "disabled" : ""}>${t("todas_vlans")}</button>
+        <button type="button" class="btn btn-neutral" style="padding:2px 8px;font-size:0.72rem" id="${idBase}-limpar" ${disabled ? "disabled" : ""}>${t("limpar")}</button>
       </div>
     </div>
   `;
@@ -316,11 +323,11 @@ function vincularVlanListbox(idBase, onChange) {
     const vals = obterValoresListbox(idBase);
     const r = document.getElementById(`${idBase}-resumo`);
     if (!r) return;
-    if (!vals.length) r.textContent = "Nenhuma VLAN selecionada";
-    else if (vals.includes("__sem_vlan__")) r.textContent = "Modo: Sem VLAN (Roteada L3)";
-    else if (vals.includes("__trunk_all__")) r.textContent = "Modo: Trunk 802.1Q (Todas)";
-    else if (vals.length === 1) r.textContent = `Selecionada: VLAN ${vals[0]}`;
-    else r.textContent = `Múltiplas VLANs (${vals.length}): ${vals.join(", ")}`;
+    if (!vals.length) r.textContent = t("vl_nenhuma");
+    else if (vals.includes("__sem_vlan__")) r.textContent = t("vl_modo_sem");
+    else if (vals.includes("__trunk_all__")) r.textContent = t("vl_modo_all");
+    else if (vals.length === 1) r.textContent = `${t("vl_sel_uma")} ${vals[0]}`;
+    else r.textContent = `${t("vl_sel_mult")} (${vals.length}): ${vals.join(", ")}`;
     if (onChange) onChange(vals);
   };
 
@@ -403,20 +410,20 @@ function renderInicio(root) {
     </div>
     <div class="adw-group">
       <div class="adw-row clickable" data-go="radar">
-        <div><div class="adw-row-title">Radar &amp; Descoberta ARP da Rede</div><div class="adw-row-sub">Escaneie os dispositivos da rede local, dê apelidos e clique em Conectar SSH</div></div>
-        <span class="pill pill-success">Conectar →</span>
+        <div><div class="adw-row-title">${t("qa_radar_tit")}</div><div class="adw-row-sub">${t("qa_radar_sub")}</div></div>
+        <span class="pill pill-success">${t("conectar")}</span>
       </div>
       <div class="adw-row clickable" data-go="console">
-        <div><div class="adw-row-title">Console Direto (Inserir Comandos CLI)</div><div class="adw-row-sub">Envie comandos de leitura ou blocos de configuração diretamente ao equipamento</div></div>
-        <span class="pill pill-info">Abrir →</span>
+        <div><div class="adw-row-title">${t("qa_console_tit")}</div><div class="adw-row-sub">${t("qa_console_sub")}</div></div>
+        <span class="pill pill-info">${t("abrir")}</span>
       </div>
       <div class="adw-row clickable" data-go="portas">
-        <div><div class="adw-row-title">Portas &amp; Multi-VLAN Trunk</div><div class="adw-row-sub">Listbox Multi-VLAN com tradução ao vivo para ${fabNome}</div></div>
-        <span class="pill pill-info">Abrir →</span>
+        <div><div class="adw-row-title">${t("qa_portas_tit")}</div><div class="adw-row-sub">${t("qa_portas_sub")} ${fabNome}</div></div>
+        <span class="pill pill-info">${t("abrir")}</span>
       </div>
       <div class="adw-row clickable" data-go="wifi">
-        <div><div class="adw-row-title">Wi-Fi Multi-VLAN &amp; Antenas RF</div><div class="adw-row-sub">Configure SSIDs com várias VLANs + Canais, Largura e Potência 2.4/5 GHz</div></div>
-        <span class="pill pill-info">Abrir →</span>
+        <div><div class="adw-row-title">${t("qa_wifi_tit")}</div><div class="adw-row-sub">${t("qa_wifi_sub")}</div></div>
+        <span class="pill pill-info">${t("abrir")}</span>
       </div>
     </div>
   `;
@@ -426,15 +433,15 @@ function renderInicio(root) {
 function renderRadar(root) {
   const rows = STATE.dispositivos.map(d => `
     <tr>
-      <td><strong>${d.hostname}</strong> ${d.novo ? '<span class="pill pill-warning">Novo</span>' : ''}</td>
+      <td><strong>${d.hostname}</strong> ${d.novo ? `<span class="pill pill-warning">${t("badge_novo")}</span>` : ''}</td>
       <td><code>${d.ip}</code></td>
       <td><code>${d.mac}</code></td>
       <td>${d.interface}</td>
       <td style="color:var(--success)">${d.download_mbps.toFixed(1)} Mbps</td>
       <td style="color:var(--accent)">${d.upload_mbps.toFixed(1)} Mbps</td>
       <td style="display:flex;gap:6px">
-        <button class="btn btn-neutral" style="padding:4px 8px;font-size:0.74rem" data-nomear-mac="${d.mac}" data-nomear-atual="${d.hostname}">Nomear</button>
-        <button class="btn btn-primary" style="padding:4px 9px;font-size:0.74rem" data-ssh-ip="${d.ip}">Conectar SSH</button>
+        <button class="btn btn-neutral" style="padding:4px 8px;font-size:0.74rem" data-nomear-mac="${d.mac}" data-nomear-atual="${d.hostname}">${t("nomear")}</button>
+        <button class="btn btn-primary" style="padding:4px 9px;font-size:0.74rem" data-ssh-ip="${d.ip}">${t("conectar_ssh")}</button>
       </td>
     </tr>
   `).join("");
@@ -442,8 +449,8 @@ function renderRadar(root) {
   root.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div class="section-header" style="margin:0">
-        <h2>Buscar Dispositivos na Rede</h2>
-        <p>${STATE.modo_teste ? "Dispositivos simulados da rede local" : "Dispositivos encontrados na sua rede local"} — nomeie ou clique em <strong>Conectar SSH</strong>.</p>
+        <h2>${t("radar_tit")}</h2>
+        <p>${STATE.modo_teste ? t("radar_sub_teste") : t("radar_sub_prod")}</p>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-neutral" id="btn-ssh-manual">${t("conectar_ip_manual")}</button>
@@ -453,9 +460,9 @@ function renderRadar(root) {
     <div class="adw-group table-wrap">
       <table class="adw-table">
         <thead>
-          <tr><th>Nome / Apelido</th><th>IP</th><th>MAC</th><th>Interface</th><th>Download</th><th>Upload</th><th>Ações</th></tr>
+          <tr><th>${t("col_nome_apelido")}</th><th>IP</th><th>MAC</th><th>${t("col_interface")}</th><th>Download</th><th>Upload</th><th>${t("col_acoes")}</th></tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:18px">Nenhum dispositivo no ARP ainda. Clique em "Varrer ARP da Rede" ou "Conectar IP Manual".</td></tr>'}</tbody>
+        <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:18px">${t("radar_vazio")}</td></tr>`}</tbody>
       </table>
     </div>
   `;
@@ -465,9 +472,9 @@ function renderRadar(root) {
     const lista = await tauriInvoke("escanear_arp_rede");
     if (lista) {
       STATE.dispositivos = lista;
-      toast(`Varredura ARP concluída: ${lista.length} dispositivo(s) encontrado(s).`);
+      toast(`${t("toast_arp_ok")} ${lista.length} ${t("toast_arp_disp")}`);
     } else {
-      toast("Tabela ARP atualizada.");
+      toast(t("toast_arp_atualizada"));
     }
     renderCurrentPage();
   });
@@ -476,12 +483,12 @@ function renderRadar(root) {
   root.querySelectorAll("[data-nomear-mac]").forEach(b => b.addEventListener("click", async () => {
     const mac = b.dataset.nomearMac;
     const atual = b.dataset.nomearAtual;
-    const novo = prompt(`Digite o nome/apelido para o dispositivo (${mac}):`, atual);
+    const novo = prompt(`${t("prompt_apelido")} (${mac}):`, atual);
     if (!novo || !novo.trim()) return;
     await tauriInvoke("apelidar_dispositivo", { mac, apelido: novo.trim() });
     const d = STATE.dispositivos.find(x => x.mac === mac);
     if (d) d.hostname = novo.trim();
-    toast(`Dispositivo renomeado para '${novo.trim()}'!`);
+    toast(`${t("toast_renomeado")} '${novo.trim()}'!`);
     renderCurrentPage();
   }));
 }
@@ -490,25 +497,25 @@ function renderConsole(root) {
   const atalhos = ["show version", "show ip interface brief", "show vlan brief", "show ip route", "write memory"];
   root.innerHTML = `
     <div class="section-header">
-      <h2>Console Direto (CLI)</h2>
-      <p>Envie comandos diretamente ao equipamento conectado (${STATE.conectado_ssh ? STATE.hostname : "Desconectado — conecte no Radar & ARP"}).</p>
+      <h2>${t("console_tit")}</h2>
+      <p>${t("console_sub_prefix")} (${STATE.conectado_ssh ? STATE.hostname : t("console_desconectado")}).</p>
     </div>
     <div class="adw-group form-card">
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${atalhos.map(cmd => `<button type="button" class="btn btn-neutral" style="padding:4px 9px;font-size:0.75rem" data-cmd-rapido="${cmd}">${cmd}</button>`).join("")}
       </div>
       <div class="field">
-        <label>Comandos (um ou vários, linha por linha)</label>
-        <textarea id="cli-input" rows="4" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text-primary);font-family:var(--font-mono);font-size:0.84rem;resize:vertical" placeholder="Ex: show ip interface brief&#10;ou em modo config:&#10;interface Gi0/1&#10;description Uplink_Core"></textarea>
+        <label>${t("console_label_cmds")}</label>
+        <textarea id="cli-input" rows="4" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--text-primary);font-family:var(--font-mono);font-size:0.84rem;resize:vertical" placeholder="show ip interface brief"></textarea>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <label style="display:flex;align-items:center;gap:8px;font-size:0.84rem;cursor:pointer">
           <input type="checkbox" id="cli-modo-cfg" />
-          <span>Enviar em Modo Configuração (<code>configure terminal</code> — requer Nv. 15)</span>
+          <span>${t("console_modo_cfg")}</span>
         </label>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-neutral" id="btn-limpar-cli">Limpar Saída</button>
-          <button class="btn btn-primary" id="btn-enviar-cli">Executar Comando(s)</button>
+          <button class="btn btn-neutral" id="btn-limpar-cli">${t("console_btn_limpar")}</button>
+          <button class="btn btn-primary" id="btn-enviar-cli">${t("console_btn_exec")}</button>
         </div>
       </div>
       <div id="cli-terminal-out" class="cli-box" style="max-height:320px">${STATE.consoleSaida}</div>
@@ -521,21 +528,21 @@ function renderConsole(root) {
   }));
 
   document.getElementById("btn-limpar-cli").addEventListener("click", () => {
-    STATE.consoleSaida = "# Terminal limpo.\n";
+    STATE.consoleSaida = t("console_limpo");
     renderCurrentPage();
   });
 
   document.getElementById("btn-enviar-cli").addEventListener("click", async () => {
     const comando = document.getElementById("cli-input").value.trim();
     const modoConfig = document.getElementById("cli-modo-cfg").checked;
-    if (!comando) { toast("Digite pelo menos um comando."); return; }
-    if (modoConfig && !exigirPrivilegio(15, "enviar comandos diretos de configuração")) return;
+    if (!comando) { toast(t("console_vazio")); return; }
+    if (modoConfig && !exigirPrivilegio(15, "config CLI")) return;
 
     try {
       const resp = await tauriInvoke("executar_comando_direto", { comando, modoConfig });
       const texto = resp || `[Preview] > ${comando}\n[OK]`;
       STATE.consoleSaida += `\n>>> ${modoConfig ? "(config) " : ""}${comando}\n${texto}\n`;
-      toast("Comando executado!");
+      toast(t("console_ok"));
     } catch (err) {
       STATE.consoleSaida += `\n>>> ERRO: ${err}\n`;
       toast(`Erro: ${err}`);
@@ -554,8 +561,8 @@ function renderPortas(root) {
   const rows = STATE.portas.map(p => `
     <tr class="${p.nome === sel.nome ? "selected" : ""}" data-porta="${p.nome}">
       <td><strong>${p.nome}</strong></td>
-      <td><span class="pill ${p.ligada ? "pill-success" : "pill-danger"}">${p.ligada ? "LIGADA" : "DESLIGADA"}</span></td>
-      <td>${p.ip === "unassigned" ? "Sem IP" : p.ip}</td>
+      <td><span class="pill ${p.ligada ? "pill-success" : "pill-danger"}">${p.ligada ? t("status_ligada") : t("status_desligada")}</span></td>
+      <td>${p.ip === "unassigned" ? t("sem_ip") : p.ip}</td>
       <td>${resumoVlanPorta(p)}</td>
       <td>${p.descricao || "—"}</td>
     </tr>
@@ -565,30 +572,30 @@ function renderPortas(root) {
     <div class="grid-2">
       <div class="adw-group table-wrap">
         <table class="adw-table">
-          <thead><tr><th>Porta</th><th>Status</th><th>IPv4</th><th>VLAN(s)</th><th>Descrição</th></tr></thead>
+          <thead><tr><th>${t("col_porta")}</th><th>${t("col_status")}</th><th>IPv4</th><th>VLAN(s)</th><th>${t("col_desc")}</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <div class="adw-group form-card">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>Editando: ${sel.nome}</strong>
-          <span class="pill ${sel.ligada ? "pill-success" : "pill-danger"}">${sel.ligada ? "LIGADA" : "DESLIGADA"}</span>
+          <strong>${t("porta_editando")} ${sel.nome}</strong>
+          <span class="pill ${sel.ligada ? "pill-success" : "pill-danger"}">${sel.ligada ? t("status_ligada") : t("status_desligada")}</span>
         </div>
-        <div class="field"><label>Descrição da Porta</label><input id="p-desc" value="${sel.descricao || ""}" placeholder="Ex: Uplink_Switch_Core" /></div>
+        <div class="field"><label>${t("porta_lbl_desc")}</label><input id="p-desc" value="${sel.descricao || ""}" placeholder="Uplink_Switch_Core" /></div>
         <div class="field-row">
-          <div class="field"><label>IPv4 (L3 opcional)</label><input id="p-ip" value="${sel.ip === "unassigned" ? "" : sel.ip}" /></div>
-          <div class="field"><label>Máscara</label><input id="p-mask" value="${sel.mask || "255.255.255.0"}" /></div>
+          <div class="field"><label>${t("porta_lbl_ip")}</label><input id="p-ip" value="${sel.ip === "unassigned" ? "" : sel.ip}" /></div>
+          <div class="field"><label>${t("porta_lbl_mask")}</label><input id="p-mask" value="${sel.mask || "255.255.255.0"}" /></div>
         </div>
         <div class="field">
-          <label>Atribuir VLAN(s) — Listbox Multi-Seleção (clique simples)</label>
+          <label>${t("porta_lbl_vlans")}</label>
           ${criarHtmlVlanListbox("lb-porta-vlans", selsIniciais, { incluirEspeciais: true })}
         </div>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-primary" style="flex:1" id="btn-salvar-porta">Salvar Alterações na Porta</button>
-          <button class="btn btn-neutral" id="btn-toggle-porta">${sel.ligada ? "Desligar" : "Ligar"}</button>
+          <button class="btn btn-primary" style="flex:1" id="btn-salvar-porta">${t("porta_btn_salvar")}</button>
+          <button class="btn btn-neutral" id="btn-toggle-porta">${sel.ligada ? t("porta_btn_desligar") : t("porta_btn_ligar")}</button>
         </div>
         <div class="field" style="margin-top:4px">
-          <label>Tradução Universal ao Vivo (${(FABRICANTES_META[STATE.fabricante] || FABRICANTES_META.cisco_ios).nome})</label>
+          <label>${t("porta_lbl_traducao")} (${(FABRICANTES_META[STATE.fabricante] || FABRICANTES_META.cisco_ios).nome})</label>
           <div id="porta-cli-out" class="cli-box"></div>
         </div>
       </div>
@@ -661,23 +668,23 @@ function renderVlans(root) {
     <div class="grid-2">
       <div class="adw-group table-wrap">
         <table class="adw-table">
-          <thead><tr><th>ID</th><th>Nome</th><th>Gateway SVI</th><th>Portas</th><th>Status</th></tr></thead>
+          <thead><tr><th>ID</th><th>${t("col_nome")}</th><th>${t("col_gw_svi")}</th><th>${t("col_portas")}</th><th>${t("col_status")}</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <div class="adw-group form-card">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>${sel ? `Editando VLAN ${sel.id}` : "Nova VLAN"}</strong>
-          <button class="btn btn-neutral" style="padding:4px 9px;font-size:0.76rem" id="btn-nova-vlan">+ Nova</button>
+          <strong>${sel ? `${t("vlan_editando")} ${sel.id}` : t("vlan_nova")}</strong>
+          <button class="btn btn-neutral" style="padding:4px 9px;font-size:0.76rem" id="btn-nova-vlan">${t("vlan_btn_nova")}</button>
         </div>
         <div class="field-row">
-          <div class="field"><label>VLAN ID (2–4094)</label><input id="v-id" value="${sel ? sel.id : ""}" placeholder="Ex: 40" /></div>
-          <div class="field"><label>Nome da VLAN</label><input id="v-nome" value="${sel ? sel.nome : ""}" placeholder="Ex: Engenharia" /></div>
+          <div class="field"><label>${t("vlan_lbl_id")}</label><input id="v-id" value="${sel ? sel.id : ""}" placeholder="40" /></div>
+          <div class="field"><label>${t("vlan_lbl_nome")}</label><input id="v-nome" value="${sel ? sel.nome : ""}" placeholder="Engineering" /></div>
         </div>
-        <div class="field"><label>Gateway SVI (Opcional)</label><input id="v-gw" value="${sel ? sel.gateway_svi : ""}" placeholder="Ex: 192.168.40.1" /></div>
+        <div class="field"><label>${t("vlan_lbl_gw")}</label><input id="v-gw" value="${sel ? sel.gateway_svi : ""}" placeholder="192.168.40.1" /></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" style="flex:1" id="btn-salvar-vlan">Salvar VLAN</button>
-          ${sel && sel.id !== "1" ? `<button class="btn btn-danger" id="btn-excluir-vlan">Excluir</button>` : ""}
+          <button class="btn btn-primary" style="flex:1" id="btn-salvar-vlan">${t("vlan_btn_salvar")}</button>
+          ${sel && sel.id !== "1" ? `<button class="btn btn-danger" id="btn-excluir-vlan">${t("excluir")}</button>` : ""}
         </div>
       </div>
     </div>
@@ -722,7 +729,7 @@ function renderWifi(root) {
       <tr>
         <td><strong>${c.radio}</strong></td>
         <td>${c.banda}</td>
-        <td><span class="pill pill-info">Canal ${c.canal}</span></td>
+        <td><span class="pill pill-info">${t("rf_canal")} ${c.canal}</span></td>
         <td>${c.largura} · ${c.potencia}</td>
       </tr>
     `).join("");
@@ -730,44 +737,44 @@ function renderWifi(root) {
       <div class="grid-2">
         <div class="adw-group table-wrap">
           <table class="adw-table">
-            <thead><tr><th>Antena / Rádio</th><th>Banda RF</th><th>Canal</th><th>Largura &amp; Potência</th></tr></thead>
+            <thead><tr><th>${t("rf_col_antena")}</th><th>${t("rf_col_banda")}</th><th>${t("rf_col_canal")}</th><th>${t("rf_col_larg_pot")}</th></tr></thead>
             <tbody>${cRows}</tbody>
           </table>
         </div>
         <div class="adw-group form-card">
-          <strong>Configurar Antena / Canal RF</strong>
+          <strong>${t("rf_tit_form")}</strong>
           <div class="field-row">
-            <div class="field"><label>Antena / Banda</label>
+            <div class="field"><label>${t("rf_lbl_antena")}</label>
               <select id="rf-radio">
                 <option value="Dot11Radio0">Dot11Radio0 (2.4 GHz)</option>
                 <option value="Dot11Radio1">Dot11Radio1 (5.0 GHz)</option>
               </select>
             </div>
-            <div class="field"><label>Canal RF</label>
+            <div class="field"><label>${t("rf_lbl_canal")}</label>
               <select id="rf-canal">
-                <option value="least-congested">Automático (RRM)</option>
-                <option value="1">Canal 1 (2.4 GHz)</option>
-                <option value="6" selected>Canal 6 (2.4 GHz)</option>
-                <option value="11">Canal 11 (2.4 GHz)</option>
-                <option value="36">Canal 36 (5.0 GHz)</option>
-                <option value="44">Canal 44 (5.0 GHz)</option>
-                <option value="149">Canal 149 (5.0 GHz)</option>
+                <option value="least-congested">${t("rf_auto")}</option>
+                <option value="1">${t("rf_canal")} 1 (2.4 GHz)</option>
+                <option value="6" selected>${t("rf_canal")} 6 (2.4 GHz)</option>
+                <option value="11">${t("rf_canal")} 11 (2.4 GHz)</option>
+                <option value="36">${t("rf_canal")} 36 (5.0 GHz)</option>
+                <option value="44">${t("rf_canal")} 44 (5.0 GHz)</option>
+                <option value="149">${t("rf_canal")} 149 (5.0 GHz)</option>
               </select>
             </div>
           </div>
           <div class="field-row">
-            <div class="field"><label>Largura do Canal</label>
+            <div class="field"><label>${t("rf_lbl_larg")}</label>
               <select id="rf-larg">
                 <option>20 MHz</option><option>40 MHz</option><option>80 MHz</option>
               </select>
             </div>
-            <div class="field"><label>Potência de Transmissão</label>
+            <div class="field"><label>${t("rf_lbl_pot")}</label>
               <select id="rf-pot">
                 <option>100%</option><option>75%</option><option>50%</option><option>25%</option>
               </select>
             </div>
           </div>
-          <button class="btn btn-primary" id="btn-salvar-rf">Aplicar Parâmetros de Antena RF</button>
+          <button class="btn btn-primary" id="btn-salvar-rf">${t("rf_btn_aplicar")}</button>
         </div>
       </div>
     `;
@@ -808,18 +815,18 @@ function renderWifi(root) {
     <div class="grid-2">
       <div class="adw-group table-wrap">
         <table class="adw-table">
-          <thead><tr><th>SSID</th><th>VLAN(s)</th><th>Segurança</th><th>Pool DHCP</th><th>Antena</th></tr></thead>
+          <thead><tr><th>SSID</th><th>VLAN(s)</th><th>${t("wifi_col_seg")}</th><th>${t("wifi_col_pool")}</th><th>${t("wifi_col_antena")}</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <div class="adw-group form-card">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>${sel ? `Editando '${sel.ssid}'` : "Nova Rede Wi-Fi"}</strong>
-          <button class="btn btn-neutral" style="padding:4px 9px;font-size:0.76rem" id="btn-novo-wifi">+ Nova Rede</button>
+          <strong>${sel ? `${t("wifi_editando")} '${sel.ssid}'` : t("wifi_nova")}</strong>
+          <button class="btn btn-neutral" style="padding:4px 9px;font-size:0.76rem" id="btn-novo-wifi">${t("wifi_btn_nova")}</button>
         </div>
         <div class="field-row">
-          <div class="field"><label>Nome da Rede (SSID)</label><input id="w-ssid" value="${sel ? sel.ssid : ""}" placeholder="Ex: CORP_5G" /></div>
-          <div class="field"><label>Antena / Frequência</label>
+          <div class="field"><label>${t("wifi_lbl_ssid")}</label><input id="w-ssid" value="${sel ? sel.ssid : ""}" placeholder="CORP_5G" /></div>
+          <div class="field"><label>${t("wifi_lbl_freq")}</label>
             <select id="w-radio">
               <option value="Dot11Radio0" ${sel && sel.radio === "Dot11Radio0" ? "selected" : ""}>Dot11Radio0 (2.4 GHz)</option>
               <option value="Dot11Radio1" ${sel && sel.radio === "Dot11Radio1" ? "selected" : ""}>Dot11Radio1 (5.0 GHz)</option>
@@ -827,27 +834,27 @@ function renderWifi(root) {
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Segurança</label>
+          <div class="field"><label>${t("wifi_lbl_seg")}</label>
             <select id="w-seg">
               ${["WPA2-PSK (AES)", "WPA3-SAE (Moderno)", "WPA2-Enterprise (802.1X)", "Aberta (Sem Senha)"].map(s => `<option ${sel && sel.seguranca === s ? "selected" : ""}>${s}</option>`).join("")}
             </select>
           </div>
-          <div class="field"><label>Pool IP (DHCP)</label><input id="w-pool" value="${sel ? sel.pool_ip : "192.168.30.0/24"}" /></div>
+          <div class="field"><label>${t("wifi_lbl_pool")}</label><input id="w-pool" value="${sel ? sel.pool_ip : "192.168.30.0/24"}" /></div>
         </div>
         <div class="field">
-          <label>Senha / Chave Wi-Fi</label>
+          <label>${t("wifi_lbl_chave")}</label>
           <div class="password-wrap">
-            <input id="w-chave" type="${STATE.wifiMostrarSenha ? "text" : "password"}" value="${sel ? sel.chave : ""}" placeholder="Mínimo 8 caracteres" />
-            <button type="button" class="eye-btn" id="btn-ver-wifi-psk" title="Mostrar / ocultar senha">${STATE.wifiMostrarSenha ? ICON_EYE_OFF : ICON_EYE}</button>
+            <input id="w-chave" type="${STATE.wifiMostrarSenha ? "text" : "password"}" value="${sel ? sel.chave : ""}" placeholder="********" />
+            <button type="button" class="eye-btn" id="btn-ver-wifi-psk">${STATE.wifiMostrarSenha ? ICON_EYE_OFF : ICON_EYE}</button>
           </div>
         </div>
         <div class="field">
-          <label>VLANs Acessíveis por esta Rede Wi-Fi (Selecione 1 ou mais)</label>
+          <label>${t("wifi_lbl_vlans")}</label>
           ${criarHtmlVlanListbox("lb-wifi-vlans", sel ? sel.vlans : [])}
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" style="flex:1" id="btn-salvar-wifi">Salvar Rede Wi-Fi</button>
-          ${sel ? `<button class="btn btn-danger" id="btn-rem-wifi">Remover</button>` : ""}
+          <button class="btn btn-primary" style="flex:1" id="btn-salvar-wifi">${t("wifi_btn_salvar")}</button>
+          ${sel ? `<button class="btn btn-danger" id="btn-rem-wifi">${t("remover")}</button>` : ""}
         </div>
       </div>
     </div>
@@ -915,55 +922,55 @@ function renderAps(root) {
     <div class="grid-2">
       <div class="adw-group table-wrap">
         <table class="adw-table">
-          <thead><tr><th>Hostname AP</th><th>IP</th><th>SSID &amp; VLAN(s)</th><th>Antena / RF</th><th>Status</th></tr></thead>
+          <thead><tr><th>${t("ap_col_host")}</th><th>IP</th><th>${t("ap_col_ssid")}</th><th>${t("ap_col_rf")}</th><th>${t("col_status")}</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <div class="adw-group form-card">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>${sel ? sel.nome : "Novo Access Point"}</strong>
+          <strong>${sel ? sel.nome : t("ap_novo")}</strong>
           <div style="display:flex;gap:6px;align-items:center">
             ${sel ? `<span class="pill ${sel.online ? "pill-success" : "pill-warning"}">${sel.online ? "ONLINE" : "OFFLINE"}</span>` : ""}
-            <button class="btn btn-neutral" style="padding:4px 9px;font-size:0.76rem" id="btn-novo-ap">+ Novo AP</button>
+            <button class="btn btn-neutral" style="padding:4px 9px;font-size:0.76rem" id="btn-novo-ap">${t("ap_btn_novo")}</button>
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Hostname do AP</label><input id="ap-nome" value="${sel ? sel.nome : ""}" placeholder="Ex: AP-BLOCO-B" ${dis ? "disabled" : ""} /></div>
-          <div class="field"><label>IP Gerência</label><input id="ap-ip" value="${sel ? sel.ip : "192.168.1.245"}" ${dis ? "disabled" : ""} /></div>
+          <div class="field"><label>${t("ap_lbl_host")}</label><input id="ap-nome" value="${sel ? sel.nome : ""}" placeholder="AP-BLOCO-B" ${dis ? "disabled" : ""} /></div>
+          <div class="field"><label>${t("ap_lbl_ip")}</label><input id="ap-ip" value="${sel ? sel.ip : "192.168.1.245"}" ${dis ? "disabled" : ""} /></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>SSID Difundido</label><input id="ap-ssid" value="${sel ? sel.ssid : "CORP_NETQUIT"}" ${dis ? "disabled" : ""} /></div>
-          <div class="field"><label>Banda / Antena</label>
+          <div class="field"><label>${t("ap_lbl_ssid")}</label><input id="ap-ssid" value="${sel ? sel.ssid : "CORP_NETQUIT"}" ${dis ? "disabled" : ""} /></div>
+          <div class="field"><label>${t("ap_lbl_banda")}</label>
             <select id="ap-banda" ${dis ? "disabled" : ""}>
               ${["Dual-Band (2.4 + 5 GHz)", "2.4 GHz (802.11b/g/n)", "5.0 GHz (802.11a/n/ac)"].map(b => `<option ${sel && sel.banda === b ? "selected" : ""}>${b}</option>`).join("")}
             </select>
           </div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Canal</label><input id="ap-canal" value="${sel ? sel.canal : "Auto"}" ${dis ? "disabled" : ""} /></div>
-          <div class="field"><label>Potência</label>
+          <div class="field"><label>${t("ap_lbl_canal")}</label><input id="ap-canal" value="${sel ? sel.canal : "Auto"}" ${dis ? "disabled" : ""} /></div>
+          <div class="field"><label>${t("ap_lbl_pot")}</label>
             <select id="ap-pot" ${dis ? "disabled" : ""}>
               ${["100%", "75%", "50%", "25%"].map(p => `<option ${sel && sel.potencia === p ? "selected" : ""}>${p}</option>`).join("")}
             </select>
           </div>
         </div>
         <div class="field">
-          <label>Chave Wi-Fi do AP</label>
+          <label>${t("ap_lbl_chave")}</label>
           <div class="password-wrap">
             <input id="ap-chave" type="${STATE.apMostrarSenha ? "text" : "password"}" value="${sel ? sel.chave : "NetQuit2026"}" ${dis ? "disabled" : ""} />
-            <button type="button" class="eye-btn" id="btn-ver-senha" title="Mostrar / ocultar senha">${STATE.apMostrarSenha ? ICON_EYE_OFF : ICON_EYE}</button>
+            <button type="button" class="eye-btn" id="btn-ver-senha">${STATE.apMostrarSenha ? ICON_EYE_OFF : ICON_EYE}</button>
           </div>
         </div>
         <div class="field">
-          <label>VLANs Atribuídas ao AP (Selecione 1 ou mais)</label>
+          <label>${t("ap_lbl_vlans")}</label>
           ${criarHtmlVlanListbox("lb-ap-vlans", sel ? sel.vlans : ["10"], { disabled: dis })}
         </div>
         ${!dis
           ? `<div style="display:flex;gap:8px">
-               <button class="btn btn-primary" style="flex:1" id="btn-salvar-ap">Salvar / Provisionar AP</button>
-               ${sel ? `<button class="btn btn-danger" id="btn-rem-ap">Remover</button>` : ""}
+               <button class="btn btn-primary" style="flex:1" id="btn-salvar-ap">${t("ap_btn_salvar")}</button>
+               ${sel ? `<button class="btn btn-danger" id="btn-rem-ap">${t("remover")}</button>` : ""}
              </div>`
-          : `<div class="pill pill-warning" style="justify-content:center;padding:8px">AP desconectado — modo somente visualização</div>`
+          : `<div class="pill pill-warning" style="justify-content:center;padding:8px">${t("ap_offline_lock")}</div>`
         }
       </div>
     </div>
@@ -1026,38 +1033,38 @@ function renderRoteamento(root) {
       <td><code>${r.mask}</code></td>
       <td><code>${r.next_hop}</code></td>
       <td><span class="pill pill-info">${r.protocolo_vizinhos}</span></td>
-      <td><button class="btn btn-danger" style="padding:3px 8px;font-size:0.74rem" data-del-rota="${r.rede}">Remover</button></td>
+      <td><button class="btn btn-danger" style="padding:3px 8px;font-size:0.74rem" data-del-rota="${r.rede}">${t("remover")}</button></td>
     </tr>
   `).join("");
   root.innerHTML = `
     <div class="grid-2">
       <div class="adw-group table-wrap">
         <table class="adw-table">
-          <thead><tr><th>Rede Destino</th><th>Máscara</th><th>Próximo Salto</th><th>Ensinar Vizinhos</th><th></th></tr></thead>
+          <thead><tr><th>${t("rota_col_dest")}</th><th>${t("rota_col_mask")}</th><th>${t("rota_col_nh")}</th><th>${t("rota_col_viz")}</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
       <div class="adw-group form-card">
-        <strong>Nova Rota Estática + Ensinar Vizinhos</strong>
+        <strong>${t("rota_tit_form")}</strong>
         <div class="field-row">
-          <div class="field"><label>Rede Destino</label><input id="r-rede" placeholder="Ex: 10.60.0.0" /></div>
-          <div class="field"><label>Máscara</label><input id="r-mask" value="255.255.255.0" /></div>
+          <div class="field"><label>${t("rota_col_dest")}</label><input id="r-rede" placeholder="10.60.0.0" /></div>
+          <div class="field"><label>${t("rota_col_mask")}</label><input id="r-mask" value="255.255.255.0" /></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Próximo Salto (Next-Hop)</label><input id="r-nh" placeholder="Ex: 10.0.0.2" /></div>
-          <div class="field"><label>Distância Adm. (AD)</label><input id="r-ad" value="1" /></div>
+          <div class="field"><label>${t("rota_lbl_nh")}</label><input id="r-nh" placeholder="10.0.0.2" /></div>
+          <div class="field"><label>${t("rota_lbl_ad")}</label><input id="r-ad" value="1" /></div>
         </div>
         <div class="field">
-          <label>Ensinar Vizinhos (Propagação Dinâmica)</label>
+          <label>${t("rota_lbl_viz")}</label>
           <select id="r-prot">
-            <option>Não ensinar vizinhos (Rota isolada)</option>
-            <option>Ensinar vizinhos via OSPF (redistribute static subnets)</option>
-            <option>Ensinar vizinhos via RIP (redistribute static metric 1)</option>
-            <option>Ensinar vizinhos via EIGRP (redistribute static)</option>
-            <option>Ensinar vizinhos via BGP (redistribute static)</option>
+            <option>${t("rota_opt_nao")}</option>
+            <option>OSPF (redistribute static subnets)</option>
+            <option>RIP (redistribute static metric 1)</option>
+            <option>EIGRP (redistribute static)</option>
+            <option>BGP (redistribute static)</option>
           </select>
         </div>
-        <button class="btn btn-primary" id="btn-add-rota">Adicionar Rota &amp; Propagar</button>
+        <button class="btn btn-primary" id="btn-add-rota">${t("rota_btn_add")}</button>
       </div>
     </div>
   `;
@@ -1091,19 +1098,19 @@ function renderBackups(root) {
   const rows = STATE.backups.map(b => `
     <div class="adw-row">
       <div><div class="adw-row-title">${b.arquivo}</div><div class="adw-row-sub">${b.data_hora} · ${(b.tamanho_bytes / 1024).toFixed(1)} KB</div></div>
-      <button class="btn btn-neutral" data-restore="${b.arquivo}">Restaurar (Rollback)</button>
+      <button class="btn btn-neutral" data-restore="${b.arquivo}">${t("bk_btn_restore")}</button>
     </div>
   `).join("");
   root.innerHTML = `
     <div class="grid-2">
       <div>
-        <div class="section-header"><h2>Snapshots Salvos</h2><p>Restaure a configuração completa em caso de falha.</p></div>
-        <div class="adw-group">${rows || '<div class="adw-row">Nenhum backup encontrado.</div>'}</div>
+        <div class="section-header"><h2>${t("bk_tit_lista")}</h2><p>${t("bk_sub_lista")}</p></div>
+        <div class="adw-group">${rows || `<div class="adw-row">${t("bk_vazio")}</div>`}</div>
       </div>
       <div class="adw-group form-card">
-        <strong>Criar Novo Backup</strong>
-        <div class="field"><label>Rótulo do Snapshot</label><input id="bk-rotulo" placeholder="Ex: antes_migracao_vlan" /></div>
-        <button class="btn btn-primary" id="btn-criar-bk">Gerar Backup Agora</button>
+        <strong>${t("bk_tit_novo")}</strong>
+        <div class="field"><label>${t("bk_lbl_rotulo")}</label><input id="bk-rotulo" placeholder="pre_vlan_migration" /></div>
+        <button class="btn btn-primary" id="btn-criar-bk">${t("bk_btn_gerar")}</button>
       </div>
     </div>
   `;
@@ -1158,28 +1165,28 @@ function renderAlertas(root) {
   const listaHtml = filtrados.map(a => {
     const ativo = sel && a.id === sel.id;
     const resumoRes = a.resolvido
-      ? `<div style="margin-top:5px;font-size:0.76rem;color:var(--success)">✓ Resolvido por <strong>${a.resolvido_por || "operador"}</strong> (${a.resolvido_em || ""}) — ${a.acao_tomada || "Encerrado"}</div>`
+      ? `<div style="margin-top:5px;font-size:0.76rem;color:var(--success)">✓ ${t("alerta_resolvido_por")} <strong>${a.resolvido_por || "operador"}</strong> (${a.resolvido_em || ""}) — ${a.acao_tomada || ""}</div>`
       : "";
     return `
       <div class="adw-row clickable" data-alerta-id="${a.id}" style="${ativo ? "background:var(--accent-soft);" : ""}">
         <div style="min-width:0;flex:1">
           <div class="adw-row-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span class="pill ${a.resolvido ? "pill-success" : (a.nivel === "critico" ? "pill-danger" : (a.nivel === "aviso" ? "pill-warning" : "pill-info"))}">${a.resolvido ? "RESOLVIDO" : a.nivel.toUpperCase()}</span>
+            <span class="pill ${a.resolvido ? "pill-success" : (a.nivel === "critico" ? "pill-danger" : (a.nivel === "aviso" ? "pill-warning" : "pill-info"))}">${a.resolvido ? t("alerta_status_resolvido") : a.nivel.toUpperCase()}</span>
             <span>${a.titulo}</span>
           </div>
           <div class="adw-row-sub">${a.mensagem}</div>
           <div style="font-size:0.73rem;color:var(--text-muted);margin-top:3px">${a.categoria} · ${a.data_hora}</div>
           ${resumoRes}
         </div>
-        <span class="pill ${a.resolvido ? "pill-neutral" : "pill-info"}" style="flex-shrink:0">${a.resolvido ? "Ver Log →" : "Responder →"}</span>
+        <span class="pill ${a.resolvido ? "pill-neutral" : "pill-info"}" style="flex-shrink:0">${a.resolvido ? t("ver_log_btn") : t("responder_btn")}</span>
       </div>
     `;
   }).join("");
 
   let painelDirHtml = `
     <div class="adw-group form-card">
-      <strong>Resposta ao Incidente</strong>
-      <div style="font-size:0.84rem;color:var(--text-secondary)">Nenhum alerta selecionado neste filtro.</div>
+      <strong>${t("painel_resposta")}</strong>
+      <div style="font-size:0.84rem;color:var(--text-secondary)">${t("alerta_nenhum_sel")}</div>
     </div>
   `;
 
@@ -1189,18 +1196,18 @@ function renderAlertas(root) {
       painelDirHtml = `
         <div class="adw-group form-card">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <strong>Log de Resolução (Auditoria)</strong>
-            <span class="pill pill-success">RESOLVIDO</span>
+            <strong>${t("painel_log")}</strong>
+            <span class="pill pill-success">${t("alerta_status_resolvido")}</span>
           </div>
           <div style="font-size:0.88rem;font-weight:600">${sel.titulo}</div>
           <div class="adw-group" style="padding:12px;background:var(--bg-input);display:flex;flex-direction:column;gap:6px;font-size:0.82rem">
-            <div><span style="color:var(--text-secondary)">Responsável:</span> <strong>${sel.resolvido_por || "—"}</strong></div>
-            <div><span style="color:var(--text-secondary)">Data / Hora:</span> ${sel.resolvido_em || "—"}</div>
-            <div><span style="color:var(--text-secondary)">Ação Aplicada:</span> <strong style="color:var(--success)">${sel.acao_tomada || "Encerrado"}</strong></div>
+            <div><span style="color:var(--text-secondary)">${t("alerta_lbl_resp")}</span> <strong>${sel.resolvido_por || "—"}</strong></div>
+            <div><span style="color:var(--text-secondary)">${t("alerta_lbl_data")}</span> ${sel.resolvido_em || "—"}</div>
+            <div><span style="color:var(--text-secondary)">${t("alerta_lbl_acao")}</span> <strong style="color:var(--success)">${sel.acao_tomada || "—"}</strong></div>
           </div>
           <div class="field">
-            <label>Registro Técnico Completo &amp; Comandos Enviados</label>
-            <div class="cli-box" style="max-height:260px">${sel.log_resolucao || "Sem log técnico detalhado."}</div>
+            <label>${t("alerta_lbl_log")}</label>
+            <div class="cli-box" style="max-height:260px">${sel.log_resolucao || t("alerta_sem_log")}</div>
           </div>
         </div>
       `;
@@ -1215,18 +1222,18 @@ function renderAlertas(root) {
       painelDirHtml = `
         <div class="adw-group form-card">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <strong>Resposta ao Incidente</strong>
-            <span class="pill pill-warning">PENDENTE</span>
+            <strong>${t("painel_resposta")}</strong>
+            <span class="pill pill-warning">${t("alerta_status_pendente")}</span>
           </div>
           <div style="font-size:0.86rem;color:var(--text-secondary)">${sel.titulo}</div>
 
           <div class="field-row">
-            <div class="field"><label>MAC Detectado</label><input id="inc-mac" value="${infoExt.mac}" placeholder="AA:BB:CC:DD:EE:FF" /></div>
-            <div class="field"><label>Porta / Interface</label><input id="inc-iface" value="${infoExt.iface}" placeholder="FastEthernet0/1" /></div>
+            <div class="field"><label>${t("alerta_lbl_mac")}</label><input id="inc-mac" value="${infoExt.mac}" placeholder="AA:BB:CC:DD:EE:FF" /></div>
+            <div class="field"><label>${t("alerta_lbl_iface")}</label><input id="inc-iface" value="${infoExt.iface}" placeholder="FastEthernet0/1" /></div>
           </div>
 
           <div class="field">
-            <label>Escolha a Ação de Resposta:</label>
+            <label>${t("alerta_lbl_escolha")}</label>
             <div class="adw-group" style="background:var(--bg-input)">
               ${acoes.map(([cod, tit, sub]) => `
                 <div class="adw-row clickable" data-acao-inc="${cod}" style="padding:9px 11px;${STATE.alertaAcaoSel === cod ? "background:var(--accent-soft);" : ""}">
@@ -1240,12 +1247,12 @@ function renderAlertas(root) {
           </div>
 
           ${STATE.alertaAcaoSel === "autorizar_dispositivo" ? `
-            <div class="field"><label>Nome / Apelido do Dispositivo Confiável</label><input id="inc-apelido" placeholder="Ex: Notebook_Diretoria" /></div>
+            <div class="field"><label>${t("alerta_lbl_apelido")}</label><input id="inc-apelido" placeholder="Notebook_Admin" /></div>
           ` : ""}
 
           <div class="field">
-            <label>Observação / Nota de Auditoria (Opcional)</label>
-            <input id="inc-nota" placeholder="Ex: Dispositivo não reconhecido bloqueado preventivamente" />
+            <label>${t("alerta_lbl_nota")}</label>
+            <input id="inc-nota" placeholder="..." />
           </div>
 
           <button class="btn btn-primary" id="btn-executar-incidente">${t("btn_exec_incidente")}</button>
@@ -1257,7 +1264,7 @@ function renderAlertas(root) {
   root.innerHTML = `
     ${filtrosHtml}
     <div class="grid-2">
-      <div class="adw-group">${listaHtml || '<div class="adw-row" style="color:var(--text-secondary)">Nenhum alerta nesta categoria.</div>'}</div>
+      <div class="adw-group">${listaHtml || `<div class="adw-row" style="color:var(--text-secondary)">${t("alerta_nenhum_cat")}</div>`}</div>
       ${painelDirHtml}
     </div>
   `;
@@ -1320,45 +1327,45 @@ function renderAlertas(root) {
 function renderUsuarios(root) {
   const appRows = STATE.usuarios_app.map(u => `
     <div class="adw-row">
-      <div><div class="adw-row-title">${u.username}</div><div class="adw-row-sub">Conta do Aplicativo · Privilégio Nv. ${u.privilegio}</div></div>
-      <button class="btn btn-neutral" data-import="${u.username}">Importar ao Equipamento →</button>
+      <div><div class="adw-row-title">${u.username}</div><div class="adw-row-sub">${t("usr_app_conta")} ${u.privilegio}</div></div>
+      <button class="btn btn-neutral" data-import="${u.username}">${t("usr_btn_import")}</button>
     </div>
   `).join("");
 
   const rotRows = STATE.usuarios_roteador.map(u => `
     <div class="adw-row">
-      <div><div class="adw-row-title">${u.username}</div><div class="adw-row-sub">Conta do Equipamento · Privilégio Nv. ${u.privilegio}</div></div>
-      <span class="pill pill-success">Ativo</span>
+      <div><div class="adw-row-title">${u.username}</div><div class="adw-row-sub">${t("usr_eq_conta")} ${u.privilegio}</div></div>
+      <span class="pill pill-success">${t("ativo")}</span>
     </div>
   `).join("");
 
   root.innerHTML = `
-    <div class="section-header"><h2>Identidade / Nomear Equipamento</h2><p>Altere o Hostname, Domínio IP e Banner MOTD do equipamento conectado.</p></div>
+    <div class="section-header"><h2>${t("id_tit")}</h2><p>${t("id_sub")}</p></div>
     <div class="adw-group form-card">
       <div class="field-row">
-        <div class="field"><label>Nome do Equipamento (Hostname)</label><input id="id-host" value="${STATE.hostname}" /></div>
-        <div class="field"><label>Domínio IP (SSH)</label><input id="id-dom" value="${STATE.dominio}" /></div>
+        <div class="field"><label>${t("id_lbl_host")}</label><input id="id-host" value="${STATE.hostname}" /></div>
+        <div class="field"><label>${t("id_lbl_dom")}</label><input id="id-dom" value="${STATE.dominio}" /></div>
       </div>
-      <div class="field"><label>Banner MOTD (Aviso de Acesso)</label><input id="id-banner" value="${STATE.banner}" /></div>
-      <button class="btn btn-primary" style="align-self:flex-start" id="btn-salvar-id">Aplicar Identidade no Equipamento</button>
+      <div class="field"><label>${t("id_lbl_banner")}</label><input id="id-banner" value="${STATE.banner}" /></div>
+      <button class="btn btn-primary" style="align-self:flex-start" id="btn-salvar-id">${t("id_btn_aplicar")}</button>
     </div>
 
     <div class="grid-2">
       <div style="display:flex;flex-direction:column;gap:14px">
-        <div class="section-header" style="margin:0"><h2>Usuários do Programa (App)</h2><p>Contas locais separadas do equipamento.</p></div>
+        <div class="section-header" style="margin:0"><h2>${t("usr_app_tit")}</h2><p>${t("usr_app_sub")}</p></div>
         <div class="adw-group">${appRows}</div>
         <div class="adw-group form-card">
-          <strong>Novo Usuário do Aplicativo</strong>
+          <strong>${t("usr_novo_tit")}</strong>
           <div class="field-row">
-            <div class="field"><label>Usuário</label><input id="u-nome" placeholder="Ex: tecnico_n2" /></div>
-            <div class="field"><label>Privilégio (1–15)</label><input id="u-priv" type="number" value="7" min="1" max="15" /></div>
+            <div class="field"><label>${t("usr_lbl_nome")}</label><input id="u-nome" placeholder="tech_n2" /></div>
+            <div class="field"><label>${t("usr_lbl_priv")}</label><input id="u-priv" type="number" value="7" min="1" max="15" /></div>
           </div>
-          <div class="field"><label>Senha</label><input id="u-senha" type="password" placeholder="Senha da conta" /></div>
-          <button class="btn btn-primary" id="btn-criar-u">Criar Conta no App</button>
+          <div class="field"><label>${t("login_senha")}</label><input id="u-senha" type="password" placeholder="********" /></div>
+          <button class="btn btn-primary" id="btn-criar-u">${t("usr_btn_criar")}</button>
         </div>
       </div>
       <div>
-        <div class="section-header"><h2>Usuários do Equipamento</h2><p>Gravados diretamente via SSH no dispositivo.</p></div>
+        <div class="section-header"><h2>${t("usr_eq_tit")}</h2><p>${t("usr_eq_sub")}</p></div>
         <div class="adw-group">${rotRows}</div>
       </div>
     </div>
@@ -1478,12 +1485,26 @@ function renderAcessibilidade(root) {
         <button class="btn btn-primary" id="btn-aplicar-fonte">${t("btn_aplicar_fonte")}</button>
       </div>
     </div>
+
+    <div class="section-header">
+      <h2>${t("cfg_save_titulo")}</h2>
+      <p>${t("cfg_save_sub")}</p>
+    </div>
+    <div class="adw-group form-card">
+      <label style="display:flex;align-items:center;gap:10px;font-size:0.86rem;cursor:pointer">
+        <input type="checkbox" id="cfg-bip-alerta" ${STATE.config.bip_alerta ? "checked" : ""} />
+        <span>${t("cfg_bip_label")}</span>
+      </label>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" id="btn-salvar-configs-geral">${t("cfg_btn_salvar")}</button>
+      </div>
+    </div>
   `;
 
   root.querySelectorAll("[data-idioma]").forEach(btn => btn.addEventListener("click", async () => {
     STATE.config.idioma = btn.dataset.idioma;
     aplicarIdiomaDOM();
-    await tauriInvoke("salvar_config_app", { config: STATE.config });
+    await persistirConfigApp();
     toast(btn.textContent.trim());
     renderCurrentPage();
   }));
@@ -1491,8 +1512,8 @@ function renderAcessibilidade(root) {
   root.querySelectorAll("[data-tema]").forEach(r => r.addEventListener("click", async () => {
     STATE.config.tema = r.dataset.tema;
     aplicarTemaEFonte(STATE.config.tema, STATE.config.delta_fonte);
-    await tauriInvoke("salvar_config_app", { config: STATE.config });
-    toast("Tema atualizado instantaneamente!");
+    await persistirConfigApp();
+    toast(t("cfg_toast_tema"));
     renderCurrentPage();
   }));
 
@@ -1516,8 +1537,18 @@ function renderAcessibilidade(root) {
   document.getElementById("btn-aplicar-fonte").addEventListener("click", async () => {
     STATE.config.delta_fonte = STATE.previewDelta;
     aplicarTemaEFonte(STATE.config.tema, STATE.config.delta_fonte);
-    await tauriInvoke("salvar_config_app", { config: STATE.config });
-    toast(`Tamanho de fonte (${rotulos[STATE.config.delta_fonte]}) aplicado!`);
+    await persistirConfigApp();
+    toast(`${rotulos[STATE.config.delta_fonte]} ✓`);
+    renderCurrentPage();
+  });
+
+  document.getElementById("btn-salvar-configs-geral").addEventListener("click", async () => {
+    STATE.config.delta_fonte = STATE.previewDelta;
+    STATE.config.bip_alerta = document.getElementById("cfg-bip-alerta").checked;
+    aplicarTemaEFonte(STATE.config.tema, STATE.config.delta_fonte);
+    aplicarIdiomaDOM();
+    await persistirConfigApp();
+    toast(t("cfg_toast_salvo"));
     renderCurrentPage();
   });
 }
@@ -1569,11 +1600,11 @@ function configurarLoginEModalSsh() {
   const pill = document.getElementById("login-versao-pill");
   const perfisTeste = document.getElementById("login-perfis-teste");
   if (STATE.modo_teste) {
-    pill.textContent = "Versão Teste (Simulador)";
+    pill.textContent = t("login_versao_teste");
     pill.className = "pill pill-warning";
     perfisTeste.style.display = "flex";
   } else {
-    pill.textContent = "Versão Produção (Real)";
+    pill.textContent = t("login_versao_prod");
     pill.className = "pill pill-success";
     perfisTeste.style.display = "none";
   }
@@ -1691,12 +1722,20 @@ function configurarLoginEModalSsh() {
 }
 
 async function inicializar() {
+  try {
+    const salvoLocal = JSON.parse(localStorage.getItem("netquit_config") || "null");
+    if (salvoLocal && typeof salvoLocal === "object") {
+      STATE.config = { ...STATE.config, ...salvoLocal };
+    }
+  } catch (_) {}
+
   const remoto = await tauriInvoke("obter_estado_completo");
   if (remoto) {
     Object.assign(STATE, remoto);
     STATE.previewDelta = STATE.config.delta_fonte || 0;
   }
   aplicarTemaEFonte(STATE.config.tema, STATE.config.delta_fonte);
+  aplicarIdiomaDOM();
   atualizarBadges();
   configurarLoginEModalSsh();
 
@@ -1715,7 +1754,7 @@ async function inicializar() {
     if (r) Object.assign(STATE, r);
     atualizarBadges();
     renderCurrentPage();
-    toast("Dados sincronizados!");
+    toast(t("toast_sync"));
   });
 
   const selFab = document.getElementById("sel-fabricante");
@@ -1726,9 +1765,10 @@ async function inicializar() {
       const meta = FABRICANTES_META[STATE.fabricante] || FABRICANTES_META.cisco_ios;
       if (STATE.modo_teste) STATE.hostname = meta.host;
       await tauriInvoke("definir_fabricante", { slug: STATE.fabricante });
+      await persistirConfigApp();
       atualizarBadges();
       renderCurrentPage();
-      toast(`Tradutor Universal alternado para ${meta.nome}!`);
+      toast(`${t("toast_vendor")} ${meta.nome}!`);
     });
   }
 
@@ -1742,9 +1782,10 @@ async function inicializar() {
       const meta = FABRICANTES_META[prox];
       if (STATE.modo_teste) STATE.hostname = meta.host;
       await tauriInvoke("definir_fabricante", { slug: STATE.fabricante });
+      await persistirConfigApp();
       atualizarBadges();
       renderCurrentPage();
-      toast(`Auto-Fingerprint detectou: ${meta.nome}`);
+      toast(`${t("toast_detect")} ${meta.nome}`);
     });
   }
 

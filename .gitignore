@@ -1,11 +1,9 @@
-# Build do Rust (muito pesado — nunca subir!)
 /target
 **/target
+/dist
+dist/
 **/*.rs.bk
 *.pdb
-dist/
-
-# Dados locais, alertas e backups gerados em execucao
 dados_rede/
 dados_rede_teste/
 backups/
@@ -13,7 +11,5 @@ backups_teste/
 admin_common/
 admin_common_teste/
 config_app*.json
-
-# Lixo de sistema operacional
 .DS_Store
 Thumbs.db

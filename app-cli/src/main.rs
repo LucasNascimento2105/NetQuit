@@ -44,7 +44,7 @@ fn main() {
     let args = Args::parse();
     let pasta_dados = if args.teste { "dados_rede_teste" } else { "dados_rede" };
     let alertas = GerenciadorAlertas::new(Path::new(pasta_dados));
-    let mut sim = SimuladorCiscoIOS::new(&args.host);
+    let sim = SimuladorCiscoIOS::new(&args.host);
 
     let cor_titulo = if args.sem_cor {
         ""
@@ -59,13 +59,22 @@ fn main() {
     let linha = if args.ascii { "+----------------------------------------------------------+" } else { "────────────────────────────────────────────────────────────" };
 
     println!("{}{}{}", cor_titulo, linha, reset);
-    println!("{}  CISCO NETCONTROL CLI (RUST) - {}  {}", cor_titulo, if args.teste { "MODO TESTE" } else { "PRODUCAO" }, reset);
+    println!("{}  NETQUIT CLI (by Alt+F4) - {}  {}", cor_titulo, if args.teste { "MODO TESTE" } else { "PRODUCAO" }, reset);
     println!("{}  Host: {} | Equipamento: {}  {}", cor_titulo, args.host, sim.hostname(), reset);
     println!("{}{}{}", cor_titulo, linha, reset);
 
     loop {
-        println!("\n[1] Visao Geral  [2] Portas (Multi-VLAN)  [3] VLANs  [4] Wi-Fi (Multi-VLAN)");
-        println!("[5] Access Points  [6] Roteamento  [7] Radar & Trafego  [8] Alertas  [0] Sair");
+        println!("\n{}", linha);
+        println!("  [1] Visao Geral");
+        println!("  [2] Portas (Multi-VLAN)");
+        println!("  [3] VLANs");
+        println!("  [4] Wi-Fi (Multi-VLAN)");
+        println!("  [5] Access Points");
+        println!("  [6] Roteamento");
+        println!("  [7] Radar & Trafego");
+        println!("  [8] Central de Alertas");
+        println!("  [0] Sair");
+        println!("{}", linha);
         let op = ler_linha("\nEscolha uma opcao > ");
         match op.as_str() {
             "1" => {
@@ -118,7 +127,7 @@ fn main() {
                 }
             }
             "0" => {
-                println!("Encerrando Cisco NetControl CLI.");
+                println!("Encerrando NetQuit CLI. Acabou, Quitou!");
                 break;
             }
             _ => println!("Opcao invalida."),

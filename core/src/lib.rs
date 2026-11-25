@@ -153,6 +153,10 @@ fn default_idioma() -> String {
     "pt".to_string()
 }
 
+fn default_fabricante() -> String {
+    "cisco_ios".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigApp {
     pub tema: String,        // "zorin_dark", "zorin_light", "alto_contraste", "daltonico"
@@ -161,6 +165,8 @@ pub struct ConfigApp {
     pub modo_teste: bool,
     #[serde(default = "default_idioma")]
     pub idioma: String,      // "pt", "en", "zh"
+    #[serde(default = "default_fabricante")]
+    pub fabricante_padrao: String,
 }
 
 impl Default for ConfigApp {
@@ -171,6 +177,7 @@ impl Default for ConfigApp {
             bip_alerta: true,
             modo_teste: true,
             idioma: "pt".to_string(),
+            fabricante_padrao: "cisco_ios".to_string(),
         }
     }
 }
